@@ -1,0 +1,317 @@
+Chunking is the art of breaking long content into smaller, meaningful pieces so that language models can understand, search, and reason over it effectively. Good chunking can be the difference between a RAG system that feels “magical” and one that constantly hallucinates or misses obvious facts.
+
+1. Why chunking matters (intuition, not jargon)
+Modern language models have:
+
+A token limit — they cannot read arbitrarily long documents in one go.
+A semantic limit — if you stuff too much unrelated content into a single prompt, attention gets diluted and answers degrade.
+Chunking solves this by:
+
+Cutting documents into small units that fit in the model’s context window.
+Making sure each chunk is coherent enough to answer specific questions.
+Allowing your retriever to pull only the few relevant chunks for each query.
+The trade‑off you constantly balance is:
+
+Granularity: Smaller chunks = more precise retrieval, but risk of losing context.
+Coherence: Bigger chunks = more context, but risk of noise and confusion.
+Everything in chunking is about managing that trade‑off.
+
+My book with 20+ End to End Data Science Case Studies from 5 different domains is available on Amazon.
+
+Cracking Data Science Case Study Interview: Data, Features, Models and System Design
+Amazon.com: Cracking Data Science Case Study Interview: Data, Features, Models and System Design eBook : Gummadi, Sai…
+www.amazon.com
+
+2. A map of chunking strategies
+Here is a high‑level map of the main strategies you’ll see in modern RAG systems:
+
+— Simple boundary‑based
+
+— Fixed‑size (token/character) chunks
+
+— Paragraph / sentence based
+
+— Sliding window
+
+— Structure‑aware
+
+Heading / “by title” chunking
+Document‑element chunking (sections, tables, lists)
+Recursive character splitting
+— Semantic / model‑aware
+
+Semantic chunking (embedding‑based)
+Proposition‑based / LLM‑based chunking
+Double‑pass / merging strategies
+Adaptive chunking
+— Domain‑specific / hybrid
+
+Code‑aware chunking (functions, classes, files)
+Table / form chunking
+Multi‑modal/doc‑analysis chunking (OCR, layout parsers)
+We’ll walk through each, explain the algorithm in plain language, and give guidance on when to use it.
+
+3. Simple boundary‑based chunking
+These are the workhorses: cheap, easy, and often good enough for many cases.
+
+3.1 Fixed‑size chunking (tokens or characters)
+Idea: Cut text into equal‑sized blocks by length (tokens or characters), optionally with overlap.
+
+Algorithm (token version):
+
+Tokenize the document.
+Take the first N tokens → chunk 1.
+Move the window forward by N - overlap tokens → chunk 2, and so on.
+Pros:
+
+Very simple to implement and reason about.
+Balanced sizes → stable embedding and retrieval performance.
+Good baseline for logs, chat transcripts, or messy text.
+Cons:
+
+Ignores meaning and boundaries; can cut sentences or tables.
+Important context might be split between chunks.
+When to use:
+
+Prototyping quickly.
+Highly unstructured text (logs, transcripts).
+When you don’t have document structure or layout metadata.
+3.2 Paragraph and sentence‑based chunking
+Idea: Respect natural language units like paragraphs or sentences, then group them into chunks of roughly similar size.
+
+Algorithm (sentence‑based):
+
+Split text into sentences (e.g., with spaCy or NLTK).
+Start with an empty current chunk.
+Add sentences until adding another would exceed a max_tokens threshold.
+Emit the chunk, start a new one, repeat.
+Pros:
+
+Chunks are easier to read and reason over.
+Less risk of splitting in the middle of a thought.
+Cons:
+
+Paragraphs can be very long, still too big for one chunk.
+Sentences can be too short; you may have many tiny chunks without grouping.
+When to use:
+
+Articles, blogs, manuals, and any well‑structured prose.
+When you care about human readability (e.g., showing chunks to users).
+3.3 Sliding‑window chunking (overlapping windows)
+Idea: Maintain continuity by overlapping chunks; the same sentence can appear in multiple chunks so context isn’t lost.
+
+Algorithm:
+
+Choose a window size (e.g., 500 tokens) and stride (e.g., 250).
+Chunk 1: tokens [0:500].
+Chunk 2: tokens [250:750].
+Chunk 3: tokens [500:1000], etc.
+Pros:
+
+Preserves context at chunk boundaries.
+Great for queries that reference content in the “middle” of a chunk.
+Cons:
+
+Doubles or triples the total number of tokens to embed and store.
+More storage and retrieval cost.
+When to use:
+
+Dense technical docs where every sentence depends on previous ones.
+Code and math content where references cross boundaries.
+4. Structure‑aware chunking
+These strategies use document structure: headings, sections, tables, etc.
+
+4.1 “By title” or heading‑based chunking
+Idea: Use headings (H1/H2/section titles) as natural boundaries; all text under a heading becomes one or several chunks.
+
+Algorithm:
+
+Parse the document (Markdown, HTML, PDF with a parser).
+For each heading: collect its text until the next heading.
+If the section is too long, further split with sentence/paragraph logic.
+Pros:
+
+Preserves sections (e.g., “Introduction”, “Methods”, “FAQ”).
+Queries about a section retrieve the right context.
+Cons:
+
+Depends on good document structure; weak headings → poor chunks.
+Some headings may cover very mixed topics.
+When to use:
+
+Technical docs, API references, research papers, manuals.
+Knowledge bases where headings are consistent.
+4.2 Document‑element chunking (tables, lists, code blocks)
+Common in libraries like Unstructured or document analysis tools.
+
+Idea: Treat different element types differently:
+
+A table is its own chunk.
+A code block is its own chunk.
+A bullet list may be grouped together.
+Algorithm:
+
+Run a parser that detects element types (paragraph, table, title, list).
+Group sequences of the same or related types into chunks, respecting size limits.
+Prevent mixed‑type chunks (e.g., separate tables from surrounding prose).
+Pros:​
+
+Preserves structure that models rely on for correct interpretation.
+Better retrieval for table‑based queries, code, and lists.
+Cons:
+
+Requires a good parser.
+Implementation more involved than simple splitters.
+When to use:
+
+PDF/Word/HTML docs with rich structure.
+Financial reports, technical specs, or API docs heavy in tables/code.
+4.3 Recursive character splitting (e.g., LangChain)
+Idea: Try to split at bigger, meaningful separators first (double newlines, headings), fall back to smaller ones (sentences, words, characters) only when needed.
+
+Download the Medium app
+Algorithm (RecursiveCharacterTextSplitter):
+
+— Choose an ordered list of separators, e.g.: ["\n\n", "\n", ". ", " "].
+
+— Recursively:
+
+Try splitting the text by the first separator.
+If pieces are still bigger than chunk_size, recurse on each piece with the next separator.
+When a piece is at or under chunk_size, accept it as a chunk.
+Pros:
+
+Preserves as much structure as possible.
+Flexible across many document types.
+Cons:
+
+More complex than simple token slicing.
+May still create uneven chunk sizes.
+When to use:
+
+General RAG systems where docs vary in format.
+You want a robust default splitter that “just works.”
+5. Semantic and model‑aware chunking
+These methods look at meaning, not just positions or characters.
+
+5.1 Semantic chunking (embedding‑based)
+Idea: Use sentence embeddings to detect topic changes, then break chunks at those points.
+
+Algorithm:
+
+Split into sentences.
+Embed each sentence into a vector.
+Compute similarity between consecutive sentences.
+When similarity drops below a threshold (topic shift), start a new chunk.
+Merge sentences between breakpoints into chunks, respecting a max length.
+Pros:
+
+Chunks naturally capture focused topics.
+Good retrieval for “concept‑level” queries.
+Cons:
+
+Requires an embedding model at pre‑processing time.
+Threshold tuning can be tricky.
+When to use:
+
+Long narrative or expository texts: reports, essays, books.
+When you want each chunk to represent a single idea as much as possible.
+5.2 Proposition‑based / LLM‑based chunking
+Sometimes called LLM‑based chunking.
+
+Idea: Ask a language model to decide where to split text, based on meaning.
+
+Variants:
+
+Proposition‑based: Let the LLM turn text into a list of clear “facts” or “claims”, each becoming (or feeding into) a chunk.
+LLM summarization chunking: Ask the LLM to break a long doc into subsections and summarize each, storing both original text and summary.
+Algorithm (simple prompt‑driven):
+
+Feed a long section to the LLM with instructions:
+“Divide this into sections that each focus on one idea. Output numbered sections with titles.”
+Use the model’s sections as chunk boundaries.
+Pros:
+
+Very human‑like segmentation.
+Can incorporate domain knowledge in the instructions.
+Cons:
+
+Expensive (LLM calls at indexing time).
+Non‑deterministic boundaries unless constrained carefully.
+When to use:
+
+High‑value corpora (policy docs, legal text, complex manuals).
+When quality matters more than indexing cost.
+5.3 Double‑pass / merging strategies
+Used in some advanced semantic chunking approaches.​
+
+Idea: First break text into small atomic units, then merge them based on semantic similarity to form coherent larger chunks.
+
+Algorithm (semantic double pass):
+
+First pass: fine segmentation (sentence‑level or small semantic units).
+For each candidate chunk, look at neighboring units and compare embeddings.
+Merge units while similarity stays above a threshold and size < max.
+Stop merging when topic shifts or size limit reached.
+Pros:
+
+Produces chunks that are both coherent and not too small.
+Can adapt to local topic density.
+Cons:
+
+More computationally intensive.
+Multiple thresholds to tune.
+When to use:
+
+Complex technical or scientific content where topics slowly drift.
+When you want fewer, richer chunks for each section.
+5.4 Adaptive chunking
+Idea: Dynamically adjust chunk size and overlap based on content complexity.​
+
+Algorithm (conceptual):​
+
+Analyze each section’s “information density” (e.g., number of entities, formulas, headings).
+Use smaller chunks for dense areas; larger chunks for simple or repetitive sections.
+Optionally vary overlap: more overlap for dense bits, less for simple ones.
+Pros:​
+
+Tailors granularity to the document’s structure.
+Can improve retrieval and reduce total chunks.
+Cons:
+
+Requires additional analysis or ML models.
+Harder to debug.
+When to use:
+
+Large heterogeneous corpora (mix of intros, dense proofs, examples).
+Systems at scale where you want maximum efficiency.
+6. Domain‑specific and hybrid chunking
+No real system uses just one strategy. In practice, you adapt chunking to the domain.
+
+6.1 Code‑aware chunking
+Idea: Respect code structure: files, classes, functions, docstrings.
+
+Typical approach:
+
+One chunk per function or class (plus nearby comments).
+Merge small functions until reaching a size limit.
+Use sliding windows across files for cross‑reference coverage.
+When to use: code RAG, AI code assistants, refactoring tools.
+
+6.2 Table and form chunking
+Tables and forms are special:
+
+Split by rows or logical sub‑tables.
+Preserve headers and context for each group of rows.
+Some document AI frameworks treat each table as its own mini‑document and chunk at the row group level.
+
+6.3 Multi‑modal / document‑analysis chunking
+With layout models (e.g., LayoutLMv3, OCR+layout systems), you can chunk based on visual layout:
+
+Columns, sidebars, captions.
+Group visually adjacent blocks as a chunk.
+This is crucial
+ for scanned PDFs and complex scientific papers.
+
+7. When to use what: practical decision guide
+Press enter or click to view image in full size
