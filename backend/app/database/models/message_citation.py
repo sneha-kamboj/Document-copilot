@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 
-class SourceDocument(Base):
+class MessageCitation(Base):
 	__tablename__ = 'message_citations'
 
 

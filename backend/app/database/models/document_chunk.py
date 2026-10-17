@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship,Mapped,mapped_column,DeclarativeBase
 
 from app.database.base import Base
 
-class SourceDocument(Base):
+class DocumentChunk(Base):
 	__tablename__ = 'document_chunks'
 
 	id = Column( Uuid,
