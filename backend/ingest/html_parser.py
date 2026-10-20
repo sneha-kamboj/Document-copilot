@@ -56,7 +56,7 @@ def _has_page_break(tag: Tag) -> bool:
 
 
 def _is_heading_like(tag: Tag, text: str) -> bool:
-    """SEC filings rarely use <h*>; headings are short bold paragraphs ('Item 1A. Risk Factors')."""
+
     if len(text) > 120 or len(text) < 3:
         return False
     if re.match(r"^(part\s+[ivx]+|item\s+\d+[a-c]?\.?)\b", text, re.IGNORECASE):
