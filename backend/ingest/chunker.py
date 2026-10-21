@@ -69,7 +69,7 @@ def chunk_blocks(blocks: list[Block], doc_label: str) -> list[Chunk]:
         if sum(len(x) for x in buf) + len(b.text) > MAX_CHARS and buf:
             flush()
             buf_page = b.page
-        # very long single paragraph: hard split
+      
         text = b.text
         while len(text) > MAX_CHARS:
             buf.append(text[:MAX_CHARS])
