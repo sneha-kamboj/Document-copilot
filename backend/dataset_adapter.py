@@ -78,7 +78,7 @@ class DatasetAdapter:
         return questions
 
     def load_docs(self, limit: int | None = None) -> list[dict]:
-        """Find PDF documents and return their IDs and paths."""
+
         if not self.documents_dir.is_dir():
             raise FileNotFoundError(
                 f"Documents directory not found: "
