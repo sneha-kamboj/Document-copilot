@@ -30,7 +30,7 @@ def main():
 
 	json_files = [f for f in files if f.endswith(".json") or f.endswith(".jsonl")]
 	if not json_files:
-		print("\n NO json file Found")
+		print("\n No json file Found")
 		return
 
 	path = hf_hub_download(DATASET_ID, json_files[0], repo_type="dataset")
@@ -46,7 +46,7 @@ def main():
 	print("\nSAMPLE RECORD:")
 	print(json.dumps(data[0], indent=2, ensure_ascii=False)[:1500])
 
-	# 5. Quick stats (jo fields hain unhi par chalega)
+
 	for key in ("answer_format", "evidence_sources", "doc_type"):
 		if key in data[0]:
 			print(f"\n{key} counts:")

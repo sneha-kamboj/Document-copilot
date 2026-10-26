@@ -25,7 +25,7 @@ class DatasetAdapter:
 
     @staticmethod
     def _parse_list(value) -> list:
-        """Convert list-like strings into actual Python lists."""
+
         if isinstance(value, list):
             return value
 
@@ -39,7 +39,7 @@ class DatasetAdapter:
             return []
 
     def load_questions(self, limit: int | None = None) -> list[DatasetQuestion]:
-        """Load questions and their reference metadata."""
+
         if not self.questions_path.is_file():
             raise FileNotFoundError(
                 f"Questions file not found: {self.questions_path.resolve()}"
